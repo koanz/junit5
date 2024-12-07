@@ -10,8 +10,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.koshiroanz.junit.ejemplo.exceptions.NotEnoughMoneyException;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
+import static java.time.Duration.ofMillis;
+import static java.time.Duration.ofSeconds;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.*;
 
@@ -21,11 +25,21 @@ enum Day { MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY }
 class CuentaTest {
     Cuenta cuenta;
 
+    private TestInfo testInfo;
+
+    private TestReporter testReporter;
+
     // Por cada método se inicializa una instancia de cuenta
     @BeforeEach
-    void init() {
+    void init(TestInfo testInfo, TestReporter testReporter) {
         this.cuenta = new Cuenta("John Doe", new BigDecimal("1000.123"));
+        this.testInfo = testInfo;
+        this.testReporter = testReporter;
+
         System.out.println("Iniciando el método");
+        System.out.println("Descripción test: " + testInfo.getDisplayName());
+        System.out.println("Nombre del método de test: " + testInfo.getTestMethod().orElse(null).getName());
+        System.out.println("Tags del método de test: " + testInfo.getTags());
     }
 
     // Por cada método finalizado se imprime mensaje
@@ -51,6 +65,11 @@ class CuentaTest {
         @Test
         @DisplayName("Test account name Persona")
         void testNombreCuenta() {
+            testReporter.publishEntry(testInfo.getTags().toString());
+            if(testInfo.getTags().contains("cuenta")) {
+                testReporter.publishEntry("Hacé algo...");
+            }
+
             String esperadoPersona = "John Doe";
             String actualPersona = cuenta.getPersona();
 
@@ -423,6 +442,33 @@ class CuentaTest {
 
     static List<String> montoList() {
         return Arrays.asList("100", "200", "300", "500", "700", "1000", "1000.123");
+    }
+
+    @Nested
+    @DisplayName("Test de Timeout")
+    @Tag("timeout")
+    class TimeoutTest {
+        @Test
+        @DisplayName("Testing timeout in Seconds")
+        @Timeout(2) // acepta un tipo entero en segundos
+        void testTimeoutInSeconds() throws InterruptedException {
+            TimeUnit.SECONDS.sleep(1);
+        }
+
+        @Test
+        @DisplayName("Testing timeout in Milliseconds")
+        @Timeout(value = 500, unit = TimeUnit.MILLISECONDS) // acepta un tipo entero en segundos
+        void testTimeoutInMilliseconds() throws InterruptedException {
+            TimeUnit.MILLISECONDS.sleep(200);
+        }
+
+        @Test
+        @DisplayName("Testing timeout with Assertion")
+        void testTimeoutWithAssertion() {
+            assertTimeout(Duration.ofMillis(500), () -> {
+                TimeUnit.MILLISECONDS.sleep(200);
+            });
+        }
     }
 
 }
