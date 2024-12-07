@@ -3,15 +3,19 @@ package org.koshiroanz.junit.ejemplo.models;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.*;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvFileSource;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.koshiroanz.junit.ejemplo.exceptions.NotEnoughMoneyException;
 
 import java.math.BigDecimal;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.*;
+
+enum Day { MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY }
 
 //@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CuentaTest {
@@ -41,6 +45,7 @@ class CuentaTest {
     }
 
     @Nested
+    @Tag("cuenta")
     @DisplayName("Test de nombre de Cuenta")
     class CuentaTestNombre {
         @Test
@@ -63,6 +68,7 @@ class CuentaTest {
     }
 
     @Nested
+    @Tag("cuenta")
     @DisplayName("Test de Saldo de Cuenta")
     class CuentaTestSaldo {
         @Test
@@ -101,6 +107,7 @@ class CuentaTest {
     @DisplayName("Test de Operaciones de Cuenta")
     class CuentaTestOperaciones {
         @Test
+        @Tag("cuenta")
         @DisplayName("Test debit an Account")
         void testDebitoCuenta() {
             Cuenta cuenta = new Cuenta("John Doe", new BigDecimal("1000"));
@@ -110,6 +117,7 @@ class CuentaTest {
         }
 
         @Test
+        @Tag("cuenta")
         @DisplayName("Test credit an Account")
         void testCreditoCuenta() {
             cuenta.credito(new BigDecimal(100));
@@ -119,6 +127,7 @@ class CuentaTest {
         }
 
         @Test
+        @Tag("banco")
         //@Disabled
         @DisplayName("Test transfer money between Accounts")
         void testTransferirDineroCuentas() {
@@ -140,6 +149,8 @@ class CuentaTest {
     @DisplayName("Test de Relaciones de Cuenta")
     class CuentaTestRelaciones {
         @Test
+        @Tag("banco")
+        @Tag("cuenta")
         @DisplayName("Test relationship between Bank and Account")
         void testRelacionBancoCuentas() {
             Cuenta cuenta1 = new Cuenta("John Doe", new BigDecimal("2500"));
@@ -194,6 +205,7 @@ class CuentaTest {
     @DisplayName("Test de Excepciones de Cuenta")
     class CuentaTestExcepciones {
         @Test
+        @Tag("errores")
         @DisplayName("Test NotEnoughMoney exception")
         void testNotEnoughMoneyExceptionCuenta() {
             Exception exception = assertThrows(NotEnoughMoneyException.class, () -> {
@@ -340,11 +352,77 @@ class CuentaTest {
         assertEquals(900, cuenta.getSaldo().doubleValue());
     }
 
+    @Nested
+    @Tag("parameterized")
+    class CuentaParameterizedTest {
+        @ParameterizedTest(name = "número {index} ejecutando con valor {0} ({argumentsWithNames})")
+        @ValueSource(strings = {"100", "200", "300", "500", "700", "1000.123"})
+        void testDebitoCuentaValueSource(String monto) {
+            cuenta.debito(new BigDecimal(monto));
+            assertNotNull(cuenta.getSaldo());
+            assertTrue(cuenta.getSaldo().compareTo(BigDecimal.ZERO) > 0);
+        }
+
+        @ParameterizedTest(name = "número {index} ejecutando con valor {0} ({argumentsWithNames})")
+        @CsvSource({"200,100, John, John", "250,200, Jane, jane", "300,300, Pepe, Pepe", "510,500, William, William", "750,700, Samba, Yon", "1000.123,1000.123, Henry, Thoreau"})
+        void testDebitoCuentaCsvSourceWithDynamicSaldo(String saldo, String monto, String personaEsperada, String personaActual) {
+            System.out.println(saldo + " -> " + monto);
+
+            cuenta.setSaldo(new BigDecimal(saldo));
+            cuenta.debito(new BigDecimal(monto));
+            cuenta.setPersona(personaActual);
+
+            assertNotNull(cuenta.getPersona());
+            assertEquals(personaEsperada, personaActual);
+
+            assertNotNull(cuenta.getSaldo());
+            assertTrue(cuenta.getSaldo().compareTo(BigDecimal.ZERO) > 0);
+        }
+
+        @ParameterizedTest(name = "número {index} ejecutando con valor {0} ({argumentsWithNames})")
+        @CsvSource({"1,100", "2,200", "3,300", "4,500", "5,700", "6,1000.123"})
+        void testDebitoCuentaCsvSource(String index, String monto) {
+            System.out.println(index + " -> " + monto);
+            cuenta.debito(new BigDecimal(monto));
+            assertNotNull(cuenta.getSaldo());
+            assertTrue(cuenta.getSaldo().compareTo(BigDecimal.ZERO) > 0);
+        }
+
+        @ParameterizedTest(name = "número {index} ejecutando con valor {0} ({argumentsWithNames})")
+        @CsvFileSource(resources = "/data.csv")
+        void testDebitoCuentaCsvFileSource(String monto) {
+            cuenta.debito(new BigDecimal(monto));
+            assertNotNull(cuenta.getSaldo());
+            assertTrue(cuenta.getSaldo().compareTo(BigDecimal.ZERO) > 0);
+        }
+
+        @ParameterizedTest(name = "número {index} ejecutando con valor {0} ({argumentsWithNames})")
+        @CsvFileSource(resources = "/data2.csv")
+        void testDebitoCuentaCsvFileSource2(String saldo, String monto, String personaEsperada, String personaActual) {
+            cuenta.setSaldo(new BigDecimal(saldo));
+            cuenta.debito(new BigDecimal(monto));
+            cuenta.setPersona(personaActual);
+
+            assertNotNull(cuenta.getPersona());
+            assertNotNull(cuenta.getSaldo());
+            assertEquals(personaEsperada, personaActual);
+
+            assertTrue(cuenta.getSaldo().compareTo(BigDecimal.ZERO) > 0);
+        }
+
+    }
+
+    @Tag("parameterized")
     @ParameterizedTest(name = "número {index} ejecutando con valor {0} ({argumentsWithNames})")
-    @ValueSource(strings = {"100", "200", "300", "500", "700", "1000.123"})
-    void testDebitoCuenta(String monto) {
+    @MethodSource("montoList")
+    void testDebitoCuentaMethodSource(String monto) {
         cuenta.debito(new BigDecimal(monto));
         assertNotNull(cuenta.getSaldo());
         assertTrue(cuenta.getSaldo().compareTo(BigDecimal.ZERO) > 0);
     }
+
+    static List<String> montoList() {
+        return Arrays.asList("100", "200", "300", "500", "700", "1000", "1000.123");
+    }
+
 }
